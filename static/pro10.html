@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple jQuery Animation</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        .animated-div {
+            width: 100px;
+            height: 100px;
+            background-color: lightblue;
+            margin: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: auto;
+            background: lightblue;
+            padding: 20px;
+            border-radius: 5px;
+           justify-content: center;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <p id="paragraph">This is an existing paragraph.</p>
+    <ul id="list">
+        <li>Item 1</li>
+        <li>Item 2</li>
+    </ul>
+
+    <div id="animDiv" class="animated-div">Animate Me!</div>
+
+    <button id="appendText">Append Text</button>
+    <button id="animateDiv">Animate Div</button>
+</div>
+
+    <script>
+        $(function() {
+            // Append content
+            $('#appendText').click(function() {
+                $('#paragraph').append(' This is appended text.');
+                $('#list').append('<li>New Item</li>');
+            });
+
+            // Animate div
+            $('#animateDiv').click(function() {
+                $('#animDiv').animate({
+                    width: '200px',
+                    height: '200px'
+                }, function() {
+                    $(this).css('background-color', 'orange')
+                            // Delay before resetting the color
+                           .css('background-color', 'green');
+                });
+            });
+        });
+    </script>
+
+</body>
+</html>

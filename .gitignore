@@ -1,0 +1,17 @@
+# Do not push secrets
+.env
+
+# Python bytecode
+__pycache__/
+*.pyc
+
+# Virtual environments
+venv/
+env/
+
+# Spotify cache
+.cache
+
+# VSCode and IDE settings (optional)
+.vscode/
+.idea/

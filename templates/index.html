@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spotify Playlist Creator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            padding: 20px;
+            background-color: #f3f3f3;
+        }
+        h1 {
+            text-align: center;
+            color: #1DB954;
+        }
+        .container {
+            width: 80%;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            font-weight: bold;
+        }
+        input[type="text"], input[type="number"], select {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #1DB954;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #1ed760;
+        }
+        .response {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #d4edda;
+            color: #155724;
+            border-radius: 5px;
+            display: none;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <h1>Spotify Playlist Creator</h1>
+    <div class="container">
+        <form id="playlistForm">
+            <div class="form-group">
+                <label for="option">Select Automation Type</label>
+                <select id="option" name="option">
+                    <option value="1">Top Tracks by Genre</option>
+                    <option value="2">Recently Played Recommendations</option>
+                    <option value="3">Mood-Based Playlist</option>
+                    <option value="4">Throwback Playlist</option>
+                    <option value="5">Workout Playlist by BPM</option>
+                    <option value="6">On This Day Playlist</option>
+                    <option value="7">Similar Artists Playlist</option>
+                </select>
+            </div>
+
+            <div class="form-group" id="genreDiv" style="display: none;">
+                <label for="genre">Enter Genre</label>
+                <input type="text" id="genre" name="genre" placeholder="e.g., pop, rock">
+            </div>
+
+            <div class="form-group" id="artistDiv" style="display: none;">
+                <label for="artist">Enter Artist Name</label>
+                <input type="text" id="artist" name="artist" placeholder="e.g., Coldplay">
+            </div>
+
+            <div class="form-group" id="moodDiv" style="display: none;">
+                <label for="danceability">Danceability (0 to 1)</label>
+                <input type="number" id="danceability" name="danceability" step="0.01" min="0" max="1">
+
+                <label for="energy">Energy (0 to 1)</label>
+                <input type="number" id="energy" name="energy" step="0.01" min="0" max="1">
+
+                <label for="valence">Valence (0 to 1)</label>
+                <input type="number" id="valence" name="valence" step="0.01" min="0" max="1">
+            </div>
+
+            <button type="submit">Create Playlist</button>
+        </form>
+
+        <div class="response" id="response"></div>
+    </div>
+
+    <script>
+        // Show/hide form fields based on the selected option
+        document.getElementById('option').addEventListener('change', function () {
+            const selectedOption = this.value;
+            document.getElementById('genreDiv').style.display = (selectedOption === '1') ? 'block' : 'none';
+            document.getElementById('artistDiv').style.display = (selectedOption === '7') ? 'block' : 'none';
+            document.getElementById('moodDiv').style.display = (selectedOption === '3') ? 'block' : 'none';
+        });
+
+        // Form submission and fetch API call
+        document.getElementById('playlistForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            // Collect form data
+            const formData = new FormData(this);
+            const requestData = {
+                option: formData.get('option'),
+                genre: formData.get('genre') || '',
+                artist: formData.get('artist') || '',
+                danceability: formData.get('danceability') || '',
+                energy: formData.get('energy') || '',
+                valence: formData.get('valence') || ''
+            };
+
+            // Make the POST request
+            fetch('http://127.0.0.1:5000/create-playlist', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(requestData)
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                const responseElement = document.getElementById('response');
+                responseElement.style.display = 'block';
+                responseElement.classList.remove('error');
+                responseElement.textContent = `Playlist Created Successfully: ${data.playlist_name}`;
+            })
+            .catch(error => {
+                const responseElement = document.getElementById('response');
+                responseElement.style.display = 'block';
+                responseElement.classList.add('error');
+                responseElement.textContent = `Error: ${error.message}`;
+            });
+        });
+    </script>
+</body>
+</html>
