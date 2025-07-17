@@ -1,94 +1,111 @@
+from flask import Flask, render_template, request, redirect, session, url_for
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
-from datetime import datetime
-import logging
-import os
 from dotenv import load_dotenv
+import os
+import time
+
 load_dotenv()
 
+app = Flask(__name__)
+app.secret_key = os.getenv("FLASK_SECRET_KEY")
+app.config['SESSION_COOKIE_NAME'] = 'Spotify-Session'
 
-# Enable debug logging
-logging.basicConfig(level=logging.DEBUG)
 
-# Define your Spotify developer credentials
-client_id = os.getenv("SPOTIPY_CLIENT_ID")
-client_secret = os.getenv("SPOTIPY_CLIENT_SECRET")
-redirect_uri = os.getenv("SPOTIPY_REDIRECT_URI")
+CLIENT_ID = os.getenv("SPOTIPY_CLIENT_ID")
+CLIENT_SECRET = os.getenv("SPOTIPY_CLIENT_SECRET")
+REDIRECT_URI = os.getenv("SPOTIPY_REDIRECT_URI")
+SCOPE = "playlist-modify-public user-library-read"
 
-# Scope for creating and modifying playlists
-scope = "playlist-modify-public"
-sp = spotipy.Spotify(auth_manager=SpotifyOAuth(
-    client_id=client_id,
-    client_secret=client_secret,
-    redirect_uri=redirect_uri,
-    scope=scope,
-    cache_path=".cache"
-))
+# Spotify OAuth object
+def get_auth_manager():
+    return SpotifyOAuth(client_id=CLIENT_ID,
+                        client_secret=CLIENT_SECRET,
+                        redirect_uri=REDIRECT_URI,
+                        scope=SCOPE)
 
-def create_playlist(name, description):
-    try:
-        user_id = sp.current_user()['id']
-        playlist = sp.user_playlist_create(user_id, name, description=description)
-        return playlist['id']
-    except Exception as e:
-        logging.error(f"Error creating playlist: {e}")
+def get_spotify_client():
+    token_info = session.get("token_info", None)
+    if not token_info:
         return None
 
-def add_songs_to_playlist(playlist_id, track_uris):
-    try:
-        sp.playlist_add_items(playlist_id, track_uris)
-    except Exception as e:
-        logging.error(f"Error adding songs to playlist: {e}")
+    # Refresh token if expired
+    now = int(time.time())
+    if token_info['expires_at'] - now < 60:
+        auth_manager = SpotifyOAuth(
+            client_id=CLIENT_ID,
+            client_secret=CLIENT_SECRET,
+            redirect_uri=REDIRECT_URI,
+            scope=SCOPE
+        )
+        token_info = auth_manager.refresh_access_token(token_info['refresh_token'])
+        session['token_info'] = token_info
 
-def get_kannada_tracks(limit=10):
-    try:
-        # Search for top Kannada tracks using keywords
-        results = sp.search(q="Kannada", type="track", limit=limit)
-        return [track['uri'] for track in results['tracks']['items']]
-    except Exception as e:
-        logging.error(f"Error fetching Kannada tracks: {e}")
-        return []
+    return spotipy.Spotify(auth=token_info['access_token'])
 
-def main():
-    print("Welcome to Spotify Playlist Creator!")
-    print("1. Top Tracks by Genre")
-    print("2. Top Kannada Tracks")
-    
-    choice = input("Enter the number of your choice: ")
-    
-    track_uris = []
+@app.route("/")
+def home():
+    # Check if user is logged in
+    if not session.get("token_info"):
+        return render_template("login.html")
+    return render_template("index.html")
 
-    if choice == '1':
-        genre = input("Enter a genre (e.g., rock, pop): ").strip().lower()
-        track_uris = get_top_tracks_by_genre(genre, limit=10)
-        
-        if not track_uris:
-            print("No tracks found for the specified genre.")
-            return
-        
-        playlist_name = f"Top {genre.capitalize()} Tracks"
-        playlist_description = "Generated playlist for top tracks by genre."
-        
-    elif choice == '2':
-        track_uris = get_kannada_tracks(limit=10)
-        
-        if not track_uris:
-            print("No Kannada tracks found.")
-            return
-        
-        playlist_name = "Top Kannada Tracks"
-        playlist_description = "Generated playlist featuring top Kannada songs."
-    else:
-        print("Invalid choice.")
-        return
+@app.route("/login")
+def login():
+    auth_manager = get_auth_manager()
+    auth_url = auth_manager.get_authorize_url()
+    return redirect(auth_url)
 
-    playlist_id = create_playlist(playlist_name, playlist_description)
-    if playlist_id:
-        add_songs_to_playlist(playlist_id, track_uris)
-        print(f"Playlist '{playlist_name}' created successfully!")
-    else:
-        print("Failed to create playlist.")
+@app.route("/callback")
+def callback():
+    auth_manager = get_auth_manager()
+    code = request.args.get("code")
+    token_info = auth_manager.get_access_token(code)
+    session["token_info"] = token_info
+    return redirect(url_for("home"))
 
-# Entry point
+@app.route("/create-playlist", methods=["POST"])
+def create_playlist():
+    token_info = session.get("token_info")
+    if not token_info:
+        return redirect(url_for("login"))
+
+    sp = get_spotify_client()
+    if sp is None:
+        return redirect(url_for("login"))
+
+    playlist_name = request.form.get("playlist_name")
+    genre = request.form.get("genre")
+    language = request.form.get("language")
+
+    # Fetch tracks
+    query = f"{genre} {language}"
+    results = sp.search(q=query, type="track", limit=10)
+    tracks = results["tracks"]["items"]
+
+    if not tracks:
+        return "No tracks found!"
+
+    uris = [track["uri"] for track in tracks]
+
+    # Create playlist
+    user_id = sp.me()["id"]
+    playlist = sp.user_playlist_create(user=user_id, name=playlist_name, description=f"{genre} {language} mix")
+    sp.playlist_add_items(playlist["id"], uris)
+
+    # Prepare track details
+    track_details = []
+    for track in tracks:
+        track_info = {
+            "name": track["name"],
+            "artist": track["artists"][0]["name"],
+            "album": track["album"]["name"],
+            "image": track["album"]["images"][0]["url"],  # album cover
+            "spotify_url": track["external_urls"]["spotify"]
+        }
+        track_details.append(track_info)
+
+    return render_template("result.html", playlist_url=playlist["external_urls"]["spotify"], tracks=track_details)
+
 if __name__ == "__main__":
-    main()
+    app.run(debug=True)

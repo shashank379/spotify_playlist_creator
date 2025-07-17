@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Playlist Created!</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+</head>
+<body class="bg-light">
+<div class="container mt-5">
+    <h1 class="text-center text-success">🎉 Playlist Created Successfully!</h1>
+    <div class="text-center mb-4">
+        <a href="{{ playlist_url }}" class="btn btn-primary" target="_blank">Open on Spotify</a>
+    </div>
+
+    <div class="row">
+        {% for track in tracks %}
+        <div class="col-md-4 mb-4">
+            <div class="card shadow">
+                <img src="{{ track.image }}" class="card-img-top" alt="{{ track.name }}">
+                <div class="card-body text-center">
+                    <h5 class="card-title">{{ track.name }}</h5>
+                    <p class="card-text">{{ track.artist }} | {{ track.album }}</p>
+                    <a href="{{ track.spotify_url }}" class="btn btn-sm btn-success" target="_blank">Listen on Spotify</a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+</body>
+</html>
